@@ -6,6 +6,8 @@ import json
 import logging
 from pathlib import Path
 
+import runpod
+
 from qwen_worker.config import Settings
 from qwen_worker.requests import InputError
 
@@ -60,11 +62,11 @@ def main():
         (args.output_dir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result, indent=2))
     else:
-        import runpod
-
-        # The service lock also protects against accidental future SDK concurrency changes.
-        runpod.serverless.start({"handler": handler})
+        return handler
 
 
 if __name__ == "__main__":
-    main()
+    handler = main()
+    if handler is not None:
+        # The service lock also protects against accidental future SDK concurrency changes.
+        runpod.serverless.start({"handler": handler})
