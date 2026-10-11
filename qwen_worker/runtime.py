@@ -42,11 +42,15 @@ def load_service(settings: Settings) -> ImageService:
         raise RuntimeError("This worker requires a GPU with BF16 support (Ampere or newer)")
     logger.info("Loading %s at %s", settings.model_id, settings.model_revision)
     source = download_model(settings)
+    load_kwargs = {}
+    if settings.offload == "none":
+        load_kwargs["device_map"] = "cuda"
     pipe = QwenImage21Pipeline.from_pretrained(
         source,
         torch_dtype=torch.bfloat16,
         use_safetensors=True,
         local_files_only=True,
+        **load_kwargs,
     )
     if settings.vae_tiling:
         pipe.vae.enable_tiling()
@@ -54,8 +58,6 @@ def load_service(settings: Settings) -> ImageService:
         pipe.enable_model_cpu_offload()
     elif settings.offload == "sequential":
         pipe.enable_sequential_cpu_offload()
-    else:
-        pipe.to("cuda")
     pipe.set_progress_bar_config(disable=True)
 
     def infer(**kwargs):
