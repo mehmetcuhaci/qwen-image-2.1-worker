@@ -20,6 +20,13 @@ def memory():
                 values[key + '_bytes'] = int(value.split()[0]) * 1024
     except OSError:
         pass
+    try:
+        for line in Path('/proc/self/io').read_text().splitlines():
+            key, _, value = line.partition(':')
+            if key in {'read_bytes', 'rchar'}:
+                values[key] = int(value)
+    except OSError:
+        pass
     return values
 
 
@@ -122,6 +129,10 @@ class StartupProfile:
             patch(model_loading_utils, 'load_model_dict_into_meta', timed('checkpoint.diffusers.install'))
             patch(transformers_modeling, 'load_state_dict', timed('checkpoint.transformers.read'))
             patch(transformers_modeling, 'convert_and_load_state_dict_in_model', timed('checkpoint.transformers.install'))
+            for module, name in ((modeling_utils, '_caching_allocator_warmup'),
+                                 (transformers_modeling, 'caching_allocator_warmup')):
+                if hasattr(module, name):
+                    patch(module, name, timed('cuda.allocator_reserve'))
             patch(torch, 'load', timed('checkpoint.torch.read'))
             if hasattr(torch, 'nn'):
                 patch(torch.nn.Module, 'load_state_dict', timed('checkpoint.torch.install'))
