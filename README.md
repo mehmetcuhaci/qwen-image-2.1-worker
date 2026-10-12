@@ -162,3 +162,20 @@ request and representative editing/2K jobs on the chosen Runpod GPU.
 The container pins its direct dependencies and the Diffusers source commit.
 The build resolves transitive dependencies; record `pip freeze` and deploy an image
 digest to reproduce the exact tested environment.
+
+### Startup measurements
+
+`load_service` attaches `startup_profile` to the service. It records imports,
+CUDA context initialization, local snapshot resolution, `from_pretrained`,
+pipeline components, checkpoint reads/installation, actual dtype conversions,
+and tensor placement/copy counts and bytes. It also reports process RSS/high-water
+memory and actual parameter devices/dtypes. Startup hooks are always restored
+before serving inference, including on failure. No warm-up image is generated.
+
+Call subtotals overlap and parallel shard totals are not additive wall-clock
+stages. Tensor timing measures host time; async CUDA work is recorded in the
+separate final drain stage. Safetensors mmap faults can occur during placement,
+so checkpoint file-open timing alone does not represent all disk I/O.
+
+The loader still uses the pinned checkpoint, BF16, safetensors, the existing
+device placement/offload setting and unchanged generation API.
