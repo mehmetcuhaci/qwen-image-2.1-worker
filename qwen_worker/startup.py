@@ -60,6 +60,7 @@ class StartupProfile:
         # warm-up inference, background sampler, or retained tensor references.
         from diffusers.models import model_loading_utils, modeling_utils
         from diffusers.pipelines import pipeline_utils
+        from transformers import modeling_utils as transformers_modeling
         restores = []
 
         def patch(owner, name, replacement):
@@ -101,6 +102,8 @@ class StartupProfile:
                 elapsed = time.perf_counter() - start
                 if tensor.device != output.device:
                     label = 'placement.' + tensor.device.type + '_to_' + output.device.type
+                    if tensor.dtype != output.dtype:
+                        label += '+dtype.' + str(tensor.dtype) + '_to_' + str(output.dtype)
                 elif tensor.dtype != output.dtype:
                     label = 'dtype.' + str(tensor.dtype) + '_to_' + str(output.dtype)
                 elif tensor is not output:
@@ -117,6 +120,8 @@ class StartupProfile:
             for module in (model_loading_utils, modeling_utils):
                 patch(module, 'load_state_dict', timed('checkpoint.diffusers.read'))
             patch(model_loading_utils, 'load_model_dict_into_meta', timed('checkpoint.diffusers.install'))
+            patch(transformers_modeling, 'load_state_dict', timed('checkpoint.transformers.read'))
+            patch(transformers_modeling, 'convert_and_load_state_dict_in_model', timed('checkpoint.transformers.install'))
             patch(torch, 'load', timed('checkpoint.torch.read'))
             if hasattr(torch, 'nn'):
                 patch(torch.nn.Module, 'load_state_dict', timed('checkpoint.torch.install'))

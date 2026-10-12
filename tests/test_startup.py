@@ -15,13 +15,15 @@ def test_startup_hooks_restore_and_keep_original_arguments(monkeypatch, fails):
     modules = {}
     for name in ['diffusers', 'diffusers.models', 'diffusers.models.modeling_utils',
                  'diffusers.models.model_loading_utils', 'diffusers.pipelines',
-                 'diffusers.pipelines.pipeline_utils']:
+                 'diffusers.pipelines.pipeline_utils', 'transformers', 'transformers.modeling_utils']:
         modules[name] = ModuleType(name)
         monkeypatch.setitem(sys.modules, name, modules[name])
     for name in ['diffusers.models.modeling_utils', 'diffusers.models.model_loading_utils']:
         modules[name].load_state_dict = original
     modules['diffusers.models.model_loading_utils'].load_model_dict_into_meta = original
     pipeline = modules['diffusers.pipelines.pipeline_utils']
+    modules['transformers.modeling_utils'].load_state_dict = original
+    modules['transformers.modeling_utils'].convert_and_load_state_dict_in_model = original
     pipeline.load_sub_model = original
     class Tensor:
         to = original
@@ -43,7 +45,7 @@ def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch):
     modules = {}
     for name in ['diffusers', 'diffusers.models', 'diffusers.models.modeling_utils',
                  'diffusers.models.model_loading_utils', 'diffusers.pipelines',
-                 'diffusers.pipelines.pipeline_utils']:
+                 'diffusers.pipelines.pipeline_utils', 'transformers', 'transformers.modeling_utils']:
         modules[name] = ModuleType(name)
         monkeypatch.setitem(sys.modules, name, modules[name])
     original = lambda *args, **kwargs: None
@@ -51,6 +53,8 @@ def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch):
         modules[name].load_state_dict = original
     modules['diffusers.models.model_loading_utils'].load_model_dict_into_meta = original
     modules['diffusers.pipelines.pipeline_utils'].load_sub_model = original
+    modules['transformers.modeling_utils'].load_state_dict = original
+    modules['transformers.modeling_utils'].convert_and_load_state_dict_in_model = original
     class Tensor:
         def __init__(self, dtype):
             self.dtype, self.device = dtype, SimpleNamespace(type='cpu')
