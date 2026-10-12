@@ -117,7 +117,11 @@ class StartupProfile:
                     label = 'copy.' + tensor.device.type
                 else:
                     return output
-                self.record(label, elapsed, tensor.numel() * tensor.element_size())
+                size = tensor.numel() * tensor.element_size()
+                if tensor.device.type == 'meta':
+                    label = 'meta.' + label
+                    size = 0  # Shape-only tensors have no checkpoint storage.
+                self.record(label, elapsed, size)
                 return output
             return wrapper
 
