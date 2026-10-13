@@ -36,8 +36,10 @@ def load_service(settings: Settings) -> ImageService:
     profile = StartupProfile()
     configure_cache()
     with profile.stage('imports'):
-        import torch
-        from diffusers import QwenImage21Pipeline
+        with profile.stage('imports.torch'):
+            import torch
+        with profile.stage('imports.diffusers'):
+            from diffusers import QwenImage21Pipeline
 
     with profile.stage('cuda_context'):
         if not torch.cuda.is_available():
