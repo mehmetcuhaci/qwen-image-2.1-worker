@@ -41,7 +41,8 @@ def test_startup_hooks_restore_and_keep_original_arguments(monkeypatch, fails):
     assert profile.report()['calls']['component.transformer']['calls'] == 1
 
 
-def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch):
+@pytest.mark.parametrize('device_type', ['cpu', 'meta'])
+def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch, device_type):
     modules = {}
     for name in ['diffusers', 'diffusers.models', 'diffusers.models.modeling_utils',
                  'diffusers.models.model_loading_utils', 'diffusers.pipelines',
@@ -57,7 +58,7 @@ def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch):
     modules['transformers.modeling_utils'].convert_and_load_state_dict_in_model = original
     class Tensor:
         def __init__(self, dtype):
-            self.dtype, self.device = dtype, SimpleNamespace(type='cpu')
+            self.dtype, self.device = dtype, SimpleNamespace(type=device_type)
         def to(self, dtype):
             if dtype == self.dtype:
                 return self
@@ -76,5 +77,6 @@ def test_tensor_noop_is_not_counted_as_ram_copy(monkeypatch):
         other = value.to('torch.float32')
         assert other.dtype == 'torch.float32'
     calls = profile.report()['calls']
-    assert calls['dtype.torch.bfloat16_to_torch.float32']['bytes'] == 16
+    label = ('meta.' if device_type == 'meta' else '') + 'dtype.torch.bfloat16_to_torch.float32'
+    assert calls[label]['bytes'] == (0 if device_type == 'meta' else 16)
     assert 'copy.cpu' not in calls
